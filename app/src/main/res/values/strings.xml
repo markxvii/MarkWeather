@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">马克天气</string>
+    <string name="title_activity_scrolling">马克天气v2.0</string>
+    <string name="large_text">
+        \n\n\n马克天气是一款开源的天气预报软件，具备查看全国的省市县、查询任意城市天气、自由切换城市、手动更新天气、后台自动更新天气等功能。马克天气中的天气数据由和风天气提供，背景图片由必应提供。本软件主要作为个人学习和交流使用。\n\n本软件后台api和灵感均来源于《第一行代码》，再次诚挚的感谢作者郭霖对广大Android开发初学者的帮助！
+        \n\n我是个Android开发初学者，个人交流邮箱：markxvii@outlook.com，或直接点击右上角的按钮给我发邮件!
+    </string>
+</resources>
