@@ -1,5 +1,6 @@
 package com.example.howeweather;
 
+import android.app.PendingIntent;
 import android.app.Service;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
@@ -69,6 +70,9 @@ public class WidgetService extends Service {
         remoteViews.setImageViewResource(R.id.appwidget_image,R.mipmap.weather);
         remoteViews.setTextViewText(R.id.appwidget_text_date,date);
         remoteViews.setTextViewText(R.id.appwidget_text_tem,tmp);
+        Intent click=new Intent(getApplicationContext(),reset_activity.class);
+        PendingIntent pi=PendingIntent.getActivity(getApplicationContext(),0,click,0);
+        remoteViews.setOnClickPendingIntent(R.id.appwidget_all,pi);
         AppWidgetManager manager=AppWidgetManager.getInstance(getApplicationContext());
         ComponentName componentName=new ComponentName(getApplicationContext(), WeatherWidget.class);
         manager.updateAppWidget(componentName,remoteViews);
