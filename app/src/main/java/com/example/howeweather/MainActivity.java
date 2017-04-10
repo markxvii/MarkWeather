@@ -2,6 +2,7 @@ package com.example.howeweather;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,6 +27,10 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.baidu.location.BDLocation;
+import com.baidu.location.BDLocationListener;
+import com.baidu.location.LocationClient;
+import com.baidu.location.LocationClientOption;
 import com.bumptech.glide.Glide;
 import com.example.howeweather.gson.Forecast;
 import com.example.howeweather.gson.Weather;
@@ -59,7 +64,8 @@ public class MainActivity extends AppCompatActivity{
     public SwipeRefreshLayout swipeRefresh;
     private String mWeatherId;
     private Button navButton;
-
+    public LocationClient mLocationClient;
+    private String currentPosition="";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,8 +75,11 @@ public class MainActivity extends AppCompatActivity{
             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
             getWindow().setStatusBarColor(Color.TRANSPARENT);
         }
+        mLocationClient = new LocationClient(getApplicationContext());
+        mLocationClient.registerLocationListener(new MyLocationListener());
         setContentView(R.layout.activity_main);
         initView();
+        requestLocation();
         navButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -85,11 +94,15 @@ public class MainActivity extends AppCompatActivity{
             Weather weather= Utility.handleWeatherResponse(weatherString);
             mWeatherId=weather.basic.weatherId;
             showWeatherInfo(weather);
-        }else{
+        }else if (getIntent().getStringExtra("weather_id")!=null){
             //无缓存时去服务器查询天气
             mWeatherId=getIntent().getStringExtra("weather_id");
             weather_layout.setVisibility(View.VISIBLE);
             requestWeather(mWeatherId);
+        }else if (getIntent().getStringExtra("weather_name")!=null){
+            mWeatherId=getIntent().getStringExtra("weather_name");
+            weather_layout.setVisibility(View.VISIBLE);
+            requestLocatWeather(mWeatherId);
         }
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -115,6 +128,14 @@ public class MainActivity extends AppCompatActivity{
                         startActivity(intent1);
                         finish();
                         break;
+                    case R.id.nav_location:
+                        SharedPreferences.Editor editor1=PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+                        editor1.clear();
+                        editor1.apply();
+                        requestLocation();
+                        drawer_layout.closeDrawers();
+                        requestLocatWeather(currentPosition);
+                        break;
                 }
                 return true;
             }
@@ -123,7 +144,7 @@ public class MainActivity extends AppCompatActivity{
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Snackbar.make(v, "点击确认回到天气选择", Snackbar.LENGTH_LONG)
+                Snackbar.make(v, "点击确认回到地区选择", Snackbar.LENGTH_LONG)
                         .setAction("确认", new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -176,6 +197,44 @@ public class MainActivity extends AppCompatActivity{
                             showWeatherInfo(weather);
                         }else{
                             Toast.makeText(MainActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        }
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
+            }
+        });
+        loadBingPic();
+    }
+    public void requestLocatWeather(final String weatherName){
+        String  weatherUrl="http://guolin.tech/api/weather?cityid="+weatherName+"&key=3a90d57ebc2142c588b07436c2942664";
+        HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this, "定位失败，请重试！", Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String responseText=response.body().string();
+                final Weather weather=Utility.handleWeatherResponse(responseText);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (weather!=null && "ok".equals(weather.status)){
+                            SharedPreferences.Editor editor=PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+                            editor.putString("weather",responseText);
+                            editor.apply();
+                            mWeatherId=weather.basic.weatherId;
+                            showWeatherInfo(weather);
+                        }else{
+                            Toast.makeText(MainActivity.this, "定位失败，请重试！", Toast.LENGTH_SHORT).show();
                         }
                         swipeRefresh.setRefreshing(false);
                     }
@@ -307,5 +366,70 @@ public class MainActivity extends AppCompatActivity{
         bingView=(ImageView)findViewById(R.id.bing);
         swipeRefresh=(SwipeRefreshLayout)findViewById(R.id.swipe_refresh);
         navButton=(Button)findViewById(R.id.nav_button);
+    }
+    private void requestLocation() {
+        initLocation();
+        mLocationClient.start();
+    }
+
+    private void initLocation() {
+        LocationClientOption option = new LocationClientOption();
+        option.setScanSpan(5000);
+        option.setIsNeedAddress(true);
+        mLocationClient.setLocOption(option);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mLocationClient.stop();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case 1:
+                if (grantResults.length > 0) {
+                    for (int result : grantResults) {
+                        if (result != PackageManager.PERMISSION_GRANTED) {
+                            Toast.makeText(this, "必须同意所有权限才能使用本程序", Toast.LENGTH_SHORT).show();
+                            finish();
+                            return;
+                        }
+                    }
+                    requestLocation();
+                } else {
+                    Toast.makeText(this, "发生未知错误", Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+                break;
+            default:
+        }
+    }
+
+    public class MyLocationListener implements BDLocationListener {
+
+        @Override
+        public void onReceiveLocation(BDLocation location) {
+            //           StringBuilder currentPosition=new StringBuilder();
+            //           currentPosition.append("纬度：").append(location.getLatitude()).append("\n");
+            //           currentPosition.append("经线：").append(location.getLongitude()).append("\n");
+//            currentPosition.append("国家：").append(location.getCountry()).append("\n");
+//            currentPosition.append("省：").append(location.getProvince()).append("\n");
+            currentPosition = (location.getCity()).substring(0, location.getCity().length() - 1);
+
+//            currentPosition.append("区：").append(location.getDistrict()).append("\n");
+//            currentPosition.append("街道：").append(location.getStreet()).append("\n");
+            //          currentPosition.append("定位方式：");
+            //           if (location.getLocType() == BDLocation.TypeGpsLocation) {
+            //               currentPosition.append("GPS");
+            //           } else if (location.getLocType() == BDLocation.TypeNetWorkLocation) {
+            //               currentPosition.append("网络");
+            //           }
+        }
+
+        @Override
+        public void onConnectHotSpotMessage(String s, int i) {
+        }
     }
 }

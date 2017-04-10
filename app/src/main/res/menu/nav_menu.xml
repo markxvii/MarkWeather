@@ -10,6 +10,7 @@
     <item android:title="更多">
         <menu>
             <item
+                android:id="@+id/nav_location"
                 android:icon="@drawable/locat"
                 android:title="定位"/>
             <item
