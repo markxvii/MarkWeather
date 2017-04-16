@@ -63,6 +63,7 @@ public class WidgetService extends Service {
         }
     }
     private void updateView(){
+        //设置元素
         String time=sdf.format(new Date());
         String date=sdf1.format(new Date());
         RemoteViews remoteViews=new RemoteViews(getPackageName(),R.layout.weather_widget);
@@ -70,9 +71,11 @@ public class WidgetService extends Service {
         remoteViews.setImageViewResource(R.id.appwidget_image,R.mipmap.weather);
         remoteViews.setTextViewText(R.id.appwidget_text_date,date);
         remoteViews.setTextViewText(R.id.appwidget_text_tem,tmp);
+        //添加widget点击事件，点击后返回app
         Intent click=new Intent(getApplicationContext(),reset_activity.class);
         PendingIntent pi=PendingIntent.getActivity(getApplicationContext(),0,click,0);
         remoteViews.setOnClickPendingIntent(R.id.appwidget_all,pi);
+        //结束
         AppWidgetManager manager=AppWidgetManager.getInstance(getApplicationContext());
         ComponentName componentName=new ComponentName(getApplicationContext(), WeatherWidget.class);
         manager.updateAppWidget(componentName,remoteViews);
